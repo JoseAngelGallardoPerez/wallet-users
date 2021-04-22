@@ -1,0 +1,47 @@
+{{- if .Values.hooks.dbInit.enabled | and (.Values.hooks.dbInit.createUser | or .Values.hooks.dbInit.createSchema) }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: "{{ .Release.Name }}-db-init"
+  labels:
+    app: {{ template "wallet-users.fullname" . }}
+    app.kubernetes.io/managed-by: {{ .Release.Service | quote }}
+    app.kubernetes.io/instance: {{ .Release.Name | quote }}
+    app.kubernetes.io/version: {{ .Chart.AppVersion }}
+    helm.sh/chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
+  annotations:
+    # This is what defines this resource as a hook. Without this line, the
+    # job is considered part of the release.
+    "helm.sh/hook": "pre-install"
+    "helm.sh/hook-delete-policy": "hook-succeeded,before-hook-creation"
+    "helm.sh/hook-weight": "-5"
+spec:
+  backoffLimit: 1
+  activeDeadlineSeconds: 60
+  template:
+    metadata:
+      name: "{{ .Release.Name }}"
+      labels:
+        app.kubernetes.io/managed-by: {{ .Release.Service | quote }}
+        app.kubernetes.io/instance: {{ .Release.Name | quote }}
+        helm.sh/chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: {{ include "wallet-users.name" . }}-db-init-create-schema-job
+          image: "arey/mysql-client"
+          command:
+            - "/usr/bin/mysql"
+            - "-u{{ required ".Values.mysqlAdmin.user is required! Make sure to provide it." .Values.mysqlAdmin.user }}"
+            - "-p{{ required ".Values.mysqlAdmin.password is required! Make sure to provide it." .Values.mysqlAdmin.password }}"
+            - "-h{{ required ".Values.appEnv.dbHost is required! Make sure to provide it." .Values.appEnv.dbHost }}"
+            - "--port={{ required " is required! Make sure to provide it." .Values.appEnv.dbPort }}"
+            - >-
+              -e {{ if .Values.hooks.dbInit.createSchema -}}
+                 CREATE DATABASE IF NOT EXISTS `{{ required ".Values.appEnv.dbName is required! Make sure to provide it." .Values.appEnv.dbName }}`;
+                 {{- end }}
+                 {{ if .Values.hooks.dbInit.createUser -}}
+                 CREATE USER IF NOT EXISTS '{{ required ".Values.appEnv.dbUser is required! Make sure to provide it." .Values.appEnv.dbUser }}'@'%' IDENTIFIED BY '{{ required ".Values.appEnv.dbPass is required! Make sure to provide it." .Values.appEnv.dbPass }}';
+                 GRANT ALL ON `{{ required ".Values.appEnv.dbName is required! Make sure to provide it." .Values.appEnv.dbName }}`.* TO '{{ required ".Values.appEnv.dbUser is required! Make sure to provide it." .Values.appEnv.dbUser }}'@'%';
+                {{- end }}
+{{- end -}}

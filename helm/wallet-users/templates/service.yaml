@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "wallet-users.name" . }}
+  labels:
+  {{- include "wallet-users.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.service.type }}
+  ports:
+    - name: public-api
+      port: {{ required ".Values.service.ports.public is required! Make sure to provide it." .Values.service.ports.public }}
+    {{- if (.Values.service.type | eq "ClusterIP") | or .Values.service.ports.unsafeExposeRPC }}
+    - name: rpc
+      port: {{ required ".Values.service.ports.private is required! Make sure to provide it." .Values.service.ports.rpc }}
+    {{- end }}
+  selector:
+  {{- include "wallet-users.selectorLabels" . | nindent 4 }}

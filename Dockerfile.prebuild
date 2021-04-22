@@ -1,0 +1,11 @@
+FROM alpine:3.11
+
+RUN apk add ca-certificates tzdata
+WORKDIR /app
+
+COPY zoneinfo.zip /app/zoneinfo.zip
+ENV ZONEINFO /app/zoneinfo.zip
+
+COPY ./build/service_users /app/service_users
+
+ENTRYPOINT ["/app/service_users"]

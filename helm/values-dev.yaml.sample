@@ -1,0 +1,51 @@
+# MySQL administrator credentials
+# This user is used in order to perform tasks related to initialization such as for example
+# creating DB schema (see hooks.dbInit)
+mysqlAdmin:
+  user: "root"
+  password: "secret"
+
+# Provides possibility to manage hooks
+hooks:
+  # Enables a hook that creates database schema and user.
+  # Provided DB user must have appropriate permissions.
+  # Database host and the schema name are taken from appEnv.dbHost and appEnv.dbName
+  dbInit:
+    enabled: true
+    # Create db schema
+    createSchema: true
+    # Create db user
+    createUser: true
+  # Enables a hook that performs database migration.
+  # This job uses database credentials specified in appEnv.db*
+  dbMigration:
+    enabled: true
+
+# Ingress resource specification
+ingress:
+  # Determines whether to include ingress resource
+  enabled: true
+
+# Application environment variables
+appEnv:
+  dbHost: "mysql"
+  dbPort: "3306"
+  dbUser: "wallet-users"
+  dbPass: "secret"
+  dbName: "wallet-users"
+  jwtSigningMethod: HS512
+  jwtSecret: "secret"
+
+env:
+  - name: WALLET_SETTINGS_SERVICE_HOST
+    value: "wallet-settings"
+  - name: WALLET_SETTINGS_SERVICE_PORT_RPC
+    value: "12308"
+  - name: WALLET_NOTIFICATIONS_SERVICE_HOST
+    value: "wallet-notifications"
+  - name: WALLET_NOTIFICATIONS_SERVICE_PORT_RPC
+    value: "12308"
+
+image:
+  # Overrides the image repository whose default is the chart name prefixed by "velmie/"
+  repository: "velmie/wallet-users"

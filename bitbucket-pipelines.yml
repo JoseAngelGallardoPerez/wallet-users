@@ -1,0 +1,100 @@
+options:
+  docker: true
+
+definitions:
+  steps:
+    - step: &run-tests
+        name: Running test
+        image: golang:1.14-alpine
+        script:
+          - ci/setup-repository-private-key.sh
+          - export CGO_ENABLED=0
+          - go test -cover ./...
+    - step: &run-linter
+        name: Running linter
+        image: golangci/golangci-lint:v1.27-alpine
+        script:
+          - ci/setup-repository-private-key.sh
+          - export CGO_ENABLED=0
+          - golangci-lint run --new-from-rev=f917fe43fc36a9e8abfc87de1ff8c12cc6a19861 --color always --disable-all -E gofmt -E deadcode -E errcheck -E gosimple -E govet -E ineffassign -E staticcheck -E structcheck -E typecheck -E varcheck
+        caches:
+          - gomodules
+
+    - step: &build-upload-image-by-commit
+        name: Build and Upload image by COMMIT
+        image: banst/awscli:1.18.63
+        script:
+          # Decode repository key
+          - export REPOSITORY_PRIVATE_KEY=$(echo $REPOSITORY_PRIVATE_KEY | base64 -d)
+          # Build image and tag it with hash commit
+          - docker build . --build-arg GOOS --build-arg REPOSITORY_PRIVATE_KEY -t ${AWS_REGISTRY_URL}:${BITBUCKET_COMMIT}
+          # Login to the ECR
+          - eval $(aws ecr get-login --region ${AWS_DEFAULT_REGION} --no-include-email)
+          # Push the image to ECR
+          - docker push ${AWS_REGISTRY_URL}:${BITBUCKET_COMMIT}
+          # Build database migration image
+          - docker build -t ${AWS_REGISTRY_URL_DB_MIGRATION}:${BITBUCKET_COMMIT} -f Dockerfile.migrations  .
+          # Push database migration image to ECR
+          - docker push ${AWS_REGISTRY_URL_DB_MIGRATION}:${BITBUCKET_COMMIT}
+        caches:
+          - docker
+
+    - step: &upload-openapi-docs
+        name: Upload OpenApi to S3
+        image: velmie/openapi-to-s3:latest
+        script:
+          - export OPENAPI_STAGE="${BITBUCKET_BRANCH//\//-}" # replace "/" to "-"
+          - api2s3 --src=docs/api/auth.yaml --s3-path=velmie-wallet-openapi-docs/${OPENAPI_STAGE}/users-auth --label=latest --keep-only=1 --only-diff
+          - api2s3 --src=docs/api/users.yaml --s3-path=velmie-wallet-openapi-docs/${OPENAPI_STAGE}/users-users --label=latest --keep-only=1 --only-diff
+
+    - step: &upload-openapi-release
+        name: Upload OpenApi to S3
+        image: velmie/openapi-to-s3:latest
+        script:
+          - api2s3 --src=docs/api/auth.yaml --s3-path=release-1-velmie-wallet-openapi-docs/release-1/users-auth --label=latest --keep-only=1 --only-diff
+          - api2s3 --src=docs/api/users.yaml --s3-path=release-1-velmie-wallet-openapi-docs/release-1/users-users --label=latest --keep-only=1 --only-diff
+
+  caches:
+    gomodules: $GOPATH/pkg/mod
+pipelines:
+  pull-requests:
+    '**':
+      - parallel:
+          - step: *run-tests
+          - step: *run-linter
+  tags:
+    '*.*.*':
+      - step: *run-tests
+      - step: *run-linter
+      - step:
+          name: Build docker image
+          image: banst/awscli:1.18.63
+          script:
+            # Decode repository key
+            - export REPOSITORY_PRIVATE_KEY=$(echo $REPOSITORY_PRIVATE_KEY | base64 -d)
+            # Build image and tag it with hash commit
+            - docker build . --build-arg GOOS --build-arg REPOSITORY_PRIVATE_KEY -t ${AWS_REGISTRY_URL}:${BITBUCKET_TAG}
+            # Login to the ECR
+            - eval $(aws ecr get-login --region ${AWS_DEFAULT_REGION} --no-include-email)
+            # Push the image to ECR
+            - docker push ${AWS_REGISTRY_URL}:${BITBUCKET_TAG}
+            # Build database migration image
+            - docker build -t ${AWS_REGISTRY_URL_DB_MIGRATION}:${BITBUCKET_TAG} -f Dockerfile.migrations  .
+            # Push database migration image to ECR
+            - docker push ${AWS_REGISTRY_URL_DB_MIGRATION}:${BITBUCKET_TAG}
+          caches:
+            - docker
+  branches:
+    '**':
+      - step: *run-linter
+      - step: *run-tests
+    'develop':
+      - step: *run-linter
+      - step: *run-tests
+      - step: *build-upload-image-by-commit
+      - step: *upload-openapi-docs
+    'release/1':
+      - step: *run-linter
+      - step: *run-tests
+      - step: *build-upload-image-by-commit
+      - step: *upload-openapi-release

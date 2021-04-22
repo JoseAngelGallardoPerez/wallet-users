@@ -1,0 +1,27 @@
+{{- if .Values.ingress.enabled }}
+apiVersion: networking.k8s.io/v1beta1
+kind: Ingress
+metadata:
+  name: {{ include "wallet-users.name" . }}
+  annotations:
+    {{- with .Values.ingress.annotations }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  {{- if .Values.ingress.tls.enabled }}
+  tls:
+    - hosts:
+        - "{{ required ".Values.ingress.tls.host is required! Make sure to provide it." .Values.ingress.tls.host }}"
+      secretName: "{{ required ".Values.ingress.tls.secretName is required! Make sure to provide it." .Values.ingress.tls.secretName }}"
+  {{- end }}
+  rules:
+    - http:
+        paths:
+          - backend:
+              serviceName: {{ include "wallet-users.name" . }}
+              servicePort: {{ required ".Values.service.ports.public is required! Make sure to provide it." .Values.service.ports.public }}
+            path: /users
+      {{- if .Values.ingress.tls.enabled }}
+      host: "{{ required ".Values.ingress.tls.host is required! Make sure to provide it." .Values.ingress.tls.host }}"
+      {{- end -}}
+{{- end -}}

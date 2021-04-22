@@ -1,0 +1,19 @@
+FROM golang:1.14-alpine
+
+RUN apk update && apk add --no-cache git mercurial openssh
+RUN apk add wkhtmltopdf ca-certificates tzdata
+RUN apk add --no-cache --virtual .build-deps msttcorefonts-installer \
+    && update-ms-fonts \
+    && fc-cache -f \
+    && apk del .build-deps
+
+RUN go get github.com/go-delve/delve/cmd/dlv
+
+WORKDIR /app
+
+COPY zoneinfo.zip /app/zoneinfo.zip
+ENV ZONEINFO /app/zoneinfo.zip
+
+COPY ./build/service_users /app/service_users
+
+ENTRYPOINT ["/app/service_users"]

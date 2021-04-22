@@ -1,0 +1,53 @@
+{{- if .Values.hooks.dbMigration.enabled }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: "{{ .Release.Name }}-db-migration"
+  labels:
+    app: {{ template "wallet-users.fullname" . }}
+    app.kubernetes.io/managed-by: {{ .Release.Service | quote }}
+    app.kubernetes.io/instance: {{ .Release.Name | quote }}
+    app.kubernetes.io/version: {{ .Chart.AppVersion }}
+    helm.sh/chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
+  annotations:
+    # This is what defines this resource as a hook. Without this line, the
+    # job is considered part of the release.
+    "helm.sh/hook": "pre-install,pre-upgrade"
+    "helm.sh/hook-delete-policy": "hook-succeeded,before-hook-creation"
+    "helm.sh/hook-weight": "-4"
+spec:
+  backoffLimit: 1
+  activeDeadlineSeconds: 300
+  template:
+    metadata:
+      name: "{{ .Release.Name }}"
+      labels:
+        app.kubernetes.io/managed-by: {{ .Release.Service | quote }}
+        app.kubernetes.io/instance: {{ .Release.Name | quote }}
+        helm.sh/chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+      {{- toYaml . | nindent 8 }}
+      {{- end }}
+      restartPolicy: Never
+      containers:
+        - name: "{{ include "wallet-users.name" . }}-db-migration-job"
+          image: "{{ include "wallet-users.dbMigrationImageRepositoryWithTag" . }}"
+          command:
+            - "/usr/local/bin/php"
+            - "artisan"
+            - "migrate"
+            - "--force"
+          env:
+            - name: DB_HOST
+              value: "{{ required ".Values.appEnv.dbHost is required! Make sure to provide it." .Values.appEnv.dbHost }}"
+            - name: DB_PORT
+              value: "{{ required ".Values.appEnv.dbPort is required! Make sure to provide it." .Values.appEnv.dbPort }}"
+            - name: DB_USERNAME
+              value: "{{ required ".Values.appEnv.dbUser is required! Make sure to provide it." .Values.appEnv.dbUser }}"
+            - name: DB_PASSWORD
+              value: "{{ required ".Values.appEnv.dbPass is required! Make sure to provide it." .Values.appEnv.dbPass }}"
+            - name: DB_DATABASE
+              value: "{{ required ".Values.appEnv.dbName is required! Make sure to provide it." .Values.appEnv.dbName }}"
+  {{- end -}}

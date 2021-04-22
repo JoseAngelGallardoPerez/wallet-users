@@ -1,0 +1,1310 @@
+openapi: 3.0.2
+info:
+  version: '0.2.0'
+  title: 'Auth API'
+  description: |
+    The auth API for developers.
+
+    ## Tokens:
+    | Name | Token type | Description | Default lifetime |
+    | ------- | -------- | --------- | ----------- |
+    | Access token  | [JWT](https://jwt.io/)., Bearer token | Used to make requests to the API | 30m |
+    | Refresh token | [JWT](https://jwt.io/) token | Used to update access and refresh tokens pair | 30d |
+
+    ## Access token usage
+    API requests should be made using the access token in `Authorization` header with `Bearer` e.g. `Bearer access-token-example`
+
+    After the access token is expired it should be refreshed.
+
+    ## How to determinate the token has expired
+
+    1. The API responses with 401 error.
+    2. Check the `exp` field in the token payloads.
+
+    ## Refresh token usage
+
+    **Refresh** token is only used to update **access** and **refresh** tokens.
+
+    After completing the request, old tokens (access and refresh) are invalidated and new tokens must me saved and used in next requests.
+
+
+    ## Token structure:
+    | Key name | Description |
+    | -------- | -------- |
+    | sub  | Subject: access or refresh |
+    | exp  | Expiration date and time in UNIX format |
+    | uid  | Token owner ID |
+    | firstName | First name of the token owner |
+    | lastName | Last name of the token owner |
+    | roleName | Role name of the token owner |
+    | ... | and other not required fields |
+
+security:
+  - bearerAuth: []
+
+tags:
+  - name: "Auth"
+    description: "Authentication"
+
+  - name: "Password"
+    description: "Manage password"
+
+paths:
+  /users/private/v1/auth/me:
+    get:
+      tags:
+        - Auth
+      summary: Get info about current user by AccessToken
+      description: Retrieve current (logged in) user object
+      operationId: MeHandler
+      security:
+        - bearerAuth: []
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessMe'
+              examples:
+                buyerData:
+                  $ref: '#/components/examples/BuyerData'
+                adminData:
+                  $ref: '#/components/examples/AdminData'
+
+        401:
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                accessTokenNotFound:
+                  $ref: '#/components/examples/AccessTokenNotFoundError'
+                accessTokenInvalid:
+                  $ref: '#/components/examples/AccessTokenIsInvalidError'
+
+  /users/public/v1/auth/signin:
+    post:
+      tags:
+        - Auth
+      summary: Sign In action
+      description: Login an user
+      operationId: SignInHandler
+      requestBody:
+        $ref: '#/components/requestBodies/LogIn'
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessLogin'
+              examples:
+                successfulLogin:
+                  $ref: '#/components/examples/SuccessfulLogin'
+        401:
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                invalidUsernameOrPassword:
+                  $ref: '#/components/examples/InvalidUsernameOrPasswordError'
+                userNotFound:
+                  $ref: '#/components/examples/UserNotFoundError'
+                userIsPending:
+                  $ref: '#/components/examples/UserIsPendingError'
+        403:
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        422:
+          description: Unprocessable Entity
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                required:
+                  $ref: '#/components/examples/FieldRequiredError'
+        500:
+          description: Internal server error
+
+  /users/public/v1/auth/signup:
+    post:
+      tags:
+        - Auth
+      summary: Sign Up
+      description: Registers a new user. It returns a response which depends on user's status. The response contains an access and a refresh tokens for active users. And the response contains a temporary token and user model for other statuses.
+      operationId: SignUpHandler
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SignUpForm'
+            examples:
+              Client:
+                value:
+                  roleName: "customer"
+                  email: "example@example.com"
+                  phoneNumber: "+000000000000"
+                  password: "Password"
+                  confirmPassword: "Password"
+                  nickname: "first name"
+      responses:
+        201:
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessLogin'
+              examples:
+                successfulLogin:
+                  $ref: '#/components/examples/SuccessfulLogin'
+        422:
+          description: Unprocessable Entity
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                required:
+                  $ref: '#/components/examples/FieldRequiredError'
+                invalid:
+                  $ref: '#/components/examples/InvalidFieldError'
+                emailExist:
+                  $ref: '#/components/examples/EmailExistError'
+                phoneNumberExists:
+                  $ref: '#/components/examples/PhoneNumberExistError'
+                phoneNumberFormat:
+                  $ref: '#/components/examples/PhoneNumberFormatError'
+                tooLong:
+                  $ref: '#/components/examples/FieldTooLongError'
+                mismatch:
+                  $ref: '#/components/examples/FieldMismatchError'
+                minLenght:
+                  $ref: '#/components/examples/MinLenghtError'
+                maxLenght:
+                  $ref: '#/components/examples/MaxLenghtError'
+                specialCharacter:
+                  $ref: '#/components/examples/SpecialCharacterRequiredError'
+                numberRequired:
+                  $ref: '#/components/examples/NumberRequiredError'
+                uppercaseLetter:
+                  $ref: '#/components/examples/UppercaseLetterRequiredError'
+                lowercaseLetter:
+                  $ref: '#/components/examples/LowercaseLetterRequiredError'
+
+        500:
+          description: Internal server error
+
+  /users/private/v1/auth/logout:
+    delete:
+      tags:
+        - Auth
+      summary: Sign Out
+      description: Signs out users from all devices
+      operationId: SignOutHandler
+      security:
+        - bearerAuth: []
+      responses:
+        204:
+          description: StatusNoContent
+        401:
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                accessTokenNotFound:
+                  $ref: '#/components/examples/AccessTokenNotFoundError'
+                accessTokenInvalid:
+                  $ref: '#/components/examples/AccessTokenIsInvalidError'
+
+  /users/public/v1/auth/refresh:
+    get:
+      tags:
+        - Auth
+      summary: Refresh token
+      description: Will take in a valid refresh token and return new tokens.
+      operationId: RefreshHandler
+      parameters:
+        - in: header
+          schema:
+            type: string
+          required: true
+          name: X-Refresh-Token
+          description: Must be a token string without `Bearer` e.g. `refreshtoken123`
+        - in: header
+          schema:
+            type: string
+          required: true
+          name: Authorization
+          description: Must be a token string with `Bearer` eg. `Bearer refreshtoken123`
+      responses:
+        204:
+          description: StatusNoContent
+        401:
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                accessTokenNotFound:
+                  $ref: '#/components/examples/AccessTokenNotFoundError'
+                accessTokenInvalid:
+                  $ref: '#/components/examples/AccessTokenIsInvalidError'
+
+  /users/public/v1/auth/forgot-password:
+    post:
+      tags:
+        - Password
+      summary: Request to reset password
+      operationId: forgotPassword
+      requestBody:
+        $ref: '#/components/requestBodies/ForgotPassword'
+      responses:
+        204:
+          description: No Content
+        400:
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                required:
+                  $ref: '#/components/examples/CannotForgotPasswordError'
+        403:
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                required:
+                  $ref: '#/components/examples/ResetPasswordIsNotAllowedError'
+        422:
+          description: Unprocessable Entity
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                required:
+                  $ref: '#/components/examples/FieldRequiredError'
+        500:
+          description: Internal server error
+
+  /users/public/v1/auth/reset-password:
+    post:
+      tags:
+        - Password
+      summary: Reset password
+      operationId: reserPassword
+      requestBody:
+        $ref: '#/components/requestBodies/ResetPassword'
+      responses:
+        204:
+          description: No Content
+        400:
+          description: Bad Request.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                invalidCode:
+                  $ref: '#/components/examples/InvalidConfirmationCodeError'
+        422:
+          description:  Unprocessable Entity
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                required:
+                  $ref: '#/components/examples/FieldRequiredError'
+                minLength:
+                  $ref: '#/components/examples/MinLenghtError'
+                maxLength:
+                  $ref: '#/components/examples/MaxLenghtError'
+                specialCharacterRequired:
+                  $ref: '#/components/examples/SpecialCharacterRequiredError'
+                numberRequired:
+                  $ref: '#/components/examples/NumberRequiredError'
+                uppercaseLetterRequired:
+                  $ref: '#/components/examples/UppercaseLetterRequiredError'
+                lowercaseLetterRequired:
+                  $ref: '#/components/examples/LowercaseLetterRequiredError'
+        500:
+          description: Internal server error
+
+  /users/private/v1/auth/change_password:
+    post:
+      tags:
+        - Password
+      summary: Change Password
+      description: Changes the password for a specified user.
+      operationId: ChangePasswordHandler
+      security:
+        - bearerAuth: []
+      requestBody:
+        $ref: '#/components/requestBodies/ChangePassword'
+      responses:
+        204:
+          description: No Content
+        400:
+          description: Bad Request
+        401:
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                accessTokenNotFound:
+                  $ref: '#/components/examples/AccessTokenNotFoundError'
+                accessTokenInvalid:
+                  $ref: '#/components/examples/AccessTokenIsInvalidError'
+        422:
+          description: Status Unprocessable Entity
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrors'
+        500:
+          description: Internal server error
+
+  /users/private/v1/auth/generate-new-phone-code:
+    post:
+      security:
+        - bearerAuth: []
+      tags:
+        - Verifications
+      summary: Send verification sms.
+      description: >-
+        Send verification sms to verify the phone number
+      operationId: GenerateNewPhoneCode
+      responses:
+        204:
+          description: No Content
+        401:
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        403:
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        404:
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        422:
+          description: Unprocessable Entity
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        500:
+          description: Internal Server Error
+
+  /users/private/v1/auth/check-phone-code:
+    put:
+      security:
+        - bearerAuth: []
+      tags:
+        - Verifications
+      summary: Check phone code.
+      description: >-
+        Check phone code to verify the phone number.
+      operationId: CheckPhoneCode
+      responses:
+        204:
+          description: No Content
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        401:
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        403:
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        404:
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        422:
+          description: Unprocessable Entity
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        500:
+          description: Internal Server Error
+      requestBody:
+        $ref: '#/components/requestBodies/ConfirmationCode'
+
+  /users/private/v1/auth/generate-new-email-code:
+    post:
+      security:
+        - bearerAuth: []
+      tags:
+        - Verifications
+      summary: Send verification email.
+      description: >-
+        Send verification email to verify the email address
+      operationId: GenerateNewEmailCode
+      responses:
+        204:
+          description: No Content
+        401:
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        403:
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        404:
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        422:
+          description: Unprocessable Entity
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        500:
+          description: Internal Server Error
+
+  /users/private/v1/auth/check-email-code:
+    put:
+      security:
+        - bearerAuth: []
+      tags:
+        - Verifications
+      summary: Check email code.
+      description: >-
+        Check email code to verify the email address.
+      operationId: CheckEmailCode
+      responses:
+        204:
+          description: No Content
+        401:
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        403:
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        404:
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        422:
+          description: Unprocessable Entity
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        500:
+          description: Internal Server Error
+      requestBody:
+        $ref: '#/components/requestBodies/ConfirmationCode'
+
+components:
+  schemas:
+    SuccessMe:
+      type: object
+      properties:
+        data:
+          $ref: '#/components/schemas/User'
+    Address:
+      type: object
+      properties:
+        id:
+          type: number
+        countryIsoTwo:
+          type: string
+        zipCode:
+          type: string
+        address:
+          type: string
+        addressSecondLine:
+          type: string
+        city:
+          type: string
+        region:
+          type: string
+        description:
+          type: string
+        latitude:
+          type: number
+        longitude:
+          type: number
+    User:
+      type: object
+      properties:
+        uid:
+          type: string
+        email:
+          type: string
+        username:
+          type: string
+        firstName:
+          type: string
+        lastName:
+          type: string
+        middleName:
+          type: string
+        nickname:
+          type: string
+        phoneNumber:
+          type: string
+        smsPhoneNumber:
+          type: string
+        isCorporate:
+          type: boolean
+        roleName:
+          type: string
+        parentId:
+          type: string
+        status:
+          type: string
+        userGroup:
+            $ref: '#/components/schemas/UserGroup'
+        userGroupId:
+          type: number
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+          example: "2020-02-06T07:58:20Z"
+        lastLoginAt:
+          type: string
+          example: "2020-02-06T07:58:20Z"
+        lastActedAct:
+          type: string
+          example: "2020-02-06T07:58:20Z"
+        lastLoginIp:
+          type: string
+        challengeName:
+          description: This information indicates that the user should do something. For example if the value is equal 'new_password_required' it means the user should change own password.
+          type: string
+          enum:
+            - new_password_required
+        blockedUntil:
+          type: string
+          example: "2020-02-06T07:58:20Z"
+        isPhoneConfirmed:
+          type: boolean
+        isEmailConfirmed:
+          type: boolean
+        companyDetails:
+          type: object
+          properties:
+            id:
+              type: number
+            companyName:
+              type: string
+            companyType:
+              type: string
+            companyRole:
+              type: string
+            directorFirstName:
+              type: string
+            directorLastName:
+              type: string
+            maskName:
+              type: string
+        companyId:
+          type: integer
+        physicalAddresses:
+          type: array
+          items:
+            $ref: '#/components/schemas/Address'
+        mailingAddresses:
+          type: array
+          items:
+            $ref: '#/components/schemas/Address'
+        classId:
+          type: integer
+        countryOfResidenceIsoTwo:
+          type: string
+        countryOfCitizenshipIsoTwo:
+          type: string
+        dateOfBirth:
+          type: string
+        documentType:
+          type: string
+        documentPersonalId:
+          type: string
+        fax:
+          type: string
+        homePhoneNumber:
+          type: string
+        internalNotes:
+          type: string
+        officePhoneNumber:
+          type: string
+        position:
+          type: string
+
+    UserGroup:
+      type: object
+      properties:
+        id:
+          type: number
+        name:
+          type: string
+        description:
+          type: string
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+
+    ErrorResponse:
+      type: object
+      properties:
+        errors:
+          type: array
+          items:
+            $ref: '#/components/schemas/ErrorItem'
+
+    ErrorItem:
+      type: object
+      properties:
+        title:
+          type: string
+        details:
+          type: string
+        code:
+          type: string
+        source:
+          type: string
+        target:
+          type: string
+          example: common
+        meta:
+          type: object
+          example: null
+
+    SuccessLogin:
+      type: "object"
+      properties:
+        status:
+          type: "number"
+        data:
+          type: "object"
+          properties:
+            accessToken:
+              type: string
+            refreshToken:
+              type: string
+            challengeName:
+              type: string
+              description: this field is used to determinate if an additional action is required e.g. `new_password_required` when the user must be prompted to change his password.
+
+    ValidationErrors:
+      type: object
+      properties:
+        errors:
+          type: object
+          properties:
+            SomeField1:
+              type: string
+            SomeField2:
+              type: string
+            SomeField3:
+              type: string
+
+    SignUpForm:
+      type: "object"
+      properties:
+        email:
+          type: "string"
+          example: "client@example.com"
+        password:
+          type: "string"
+          example: "Crypto#2020"
+        confirmPassword:
+          type: "string"
+          example: "Crypto#2020"
+        phoneNumber:
+          type: "string"
+          example: "+254123456789"
+        nickname:
+          type: "string"
+        roleName:
+          type: "string"
+          enum:
+            - client
+        attributes:
+          type: object
+          properties:
+            gender:
+              type: "string"
+              enum:
+                - male
+                - female
+            businessName:
+              type: string
+            merchantType:
+              type: "string"
+              enum:
+                - sole_proprietor
+                - partnership
+                - llc
+            needBulkPayment:
+              type: boolean
+
+      required:
+        - email
+        - password
+        - confirmPassword
+        - phoneNumber
+        - profileType
+
+  requestBodies:
+    LogIn:
+      content:
+        application/json:
+          schema:
+            type: "object"
+            properties:
+              data:
+                type: "object"
+                properties:
+                  email:
+                    type: "string"
+                  password:
+                    type: "string"
+                required:
+                  - email
+                  - password
+          examples:
+            byEmail:
+              value:
+                email: "admin@velmie.com"
+                password: "password"
+            byPhone:
+              value:
+                email: "+254123456789"
+                password: "password"
+
+
+
+    ForgotPassword:
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              email:
+                type: string
+            required:
+              - email
+          examples:
+            byEmail:
+              value:
+                email: "admin@velmie.com"
+            byPhone:
+              value:
+                email: "+254123456789"
+
+    ResetPassword:
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              confirmationCode:
+                type: string
+                example: "ABC12"
+              newPassword:
+                type: string
+            required:
+              - confirmationCode
+              - newPassword
+
+    ChangePassword:
+      content:
+        application/json:
+          schema:
+            type: "object"
+            properties:
+              data:
+                type: "object"
+                properties:
+                  previousPassword:
+                    type: "string"
+                    example: "password"
+                  proposedPassword:
+                    type: "string"
+                    example: "Crypto#2020"
+                  confirmPassword:
+                    type: "string"
+                    example: "Crypto#2020"
+      required: true
+
+    ConfirmationCode:
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              code:
+                type: string
+                example: ABCD5
+
+  examples:
+    AdminData:
+      summary: Admin user
+      value: {
+        "status": 200,
+        "data": {
+          "uid": "stkqkfgskshtvskk",
+          "email": "admin@velmie.com",
+          "username": "bank-admin",
+          "firstName": "bank-admin",
+          "lastName": "bank-admin",
+          "middleName": "",
+          "phoneNumber": "",
+          "smsPhoneNumber": null,
+          "isCorporate": false,
+          "roleName": "root",
+          "parentId": "",
+          "status": "active",
+          "userGroup": {
+            "id": 0,
+            "name": "",
+            "description": "",
+            "createdAt": "0001-01-01T00:00:00Z",
+            "updatedAt": "0001-01-01T00:00:00Z"
+          },
+          "userGroupId": null,
+          "createdAt": "2019-09-04T07:31:13Z",
+          "updatedAt": "2020-05-19T19:13:14Z",
+          "lastLoginAt": "2020-05-19T19:13:14Z",
+          "lastLoginIp": "178.121.77.48",
+          "challengeName": null,
+          "isPhoneConfirmed": false,
+          "classId": 1,
+          "countryOfResidenceIsoTwo": "",
+          "countryOfCitizenshipIsoTwo": "",
+          "dateOfBirth": "1990-03-21",
+          "documentType": "passport",
+          "documentPersonalId": "",
+          "fax": "",
+          "homePhoneNumber": "",
+          "internalNotes": "",
+          "officePhoneNumber": "",
+          "position": "",
+          "blockedUntil": null,
+          "lastActedAct": "2020-05-19T19:05:21Z",
+          "companyDetails": {
+            "id": 0,
+            "companyName": "",
+            "companyType": "",
+            "companyRole": "",
+            "directorFirstName": "",
+            "directorLastName": "",
+            "MaskName": ""
+          },
+          "companyID": null
+        }
+      }
+
+    BuyerData:
+      summary: Buyer user
+      value: {
+        "status": 200,
+        "data": {
+          "uid": "0311fb47-e43d-4e84-9a83-27db1a40675e",
+          "email": "buyer@velmie.com",
+          "username": "gebubyk",
+          "firstName": "Hyacinth",
+          "lastName": "Nunez",
+          "middleName": "",
+          "phoneNumber": "+741113915725",
+          "smsPhoneNumber": "",
+          "isCorporate": false,
+          "roleName": "buyer",
+          "parentId": "",
+          "status": "active",
+          "userGroup": {
+            "id": 0,
+            "name": "",
+            "description": "",
+            "createdAt": "0001-01-01T00:00:00Z",
+            "updatedAt": "0001-01-01T00:00:00Z"
+          },
+          "userGroupId": null,
+          "createdAt": "2019-03-06T09:41:45Z",
+          "updatedAt": "2020-05-19T19:39:30Z",
+          "lastLoginAt": "2020-05-19T19:39:13Z",
+          "lastLoginIp": "178.121.77.48",
+          "challengeName": null,
+          "isPhoneConfirmed": false,
+          "classId": 9,
+          "countryOfResidenceIsoTwo": "",
+          "countryOfCitizenshipIsoTwo": "",
+          "dateOfBirth": "1990-03-21",
+          "documentType": null,
+          "documentPersonalId": "",
+          "fax": "",
+          "homePhoneNumber": "",
+          "internalNotes": "",
+          "officePhoneNumber": "",
+          "position": "",
+          "blockedUntil": null,
+          "lastActedAct": "2020-05-19T19:39:30Z",
+          "companyDetails": {
+            "id": 0,
+            "companyName": "",
+            "companyType": "",
+            "companyRole": "",
+            "directorFirstName": "",
+            "directorLastName": "",
+            "MaskName": ""
+          },
+          "companyID": null
+        }
+      }
+
+    SuccessfulLogin:
+      summary: Successful Login
+      value: {
+        "status": 200,
+        "data": {
+          "accessToken": "eyJhbGciOiJFUzUxMiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE1ODk5MjA4NzcsImZpcnN0TmFtZSI6ImJhbmstYWRtaW4iLCJsYXN0TmFtZSI6ImJhbmstYWRtaW4iLCJwYXJlbnRJZCI6IiIsInJvbGVOYW1lIjoicm9vdCIsInN1YiI6ImFjY2VzcyIsInVpZCI6InN0a3FrZmdza3NodHZza2syIiwidXNlcm5hbWUiOiJiYW5rLWFkbWluIn0.AOCqefUh2sFMFXssjafWiUB1V3aL3Ld63JHYTKp4mWZJLlkRsxPP2QgAPTg1kV8iPSVx1tPimiJ1VZMg1n1-awYnAF-U8wDVFrUihgSqJ0PLovyAHMrSt_iyueNoZ7PaWJ2DaJwvLeeY6yik1owsfz490LTsNWMynuKxxzhRUXrhufYp",
+          "refreshToken": "eyJhbGciOiJFUzUxMiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE1ODk5MjE1MjcsImZpcnN0TmFtZSI6ImJhbmstYWRtaW4iLCJsYXN0TmFtZSI6ImJhbmstYWRtaW4iLCJwYXJlbnRJZCI6IiIsInJvbGVOYW1lIjoicm9vdCIsInN1YiI6InJlZnJlc2giLCJ1aWQiOiJzdGtxa2Znc2tzaHR2c2trMiIsInVzZXJuYW1lIjoiYmFuay1hZG1pbiJ9.Ad-EVbppmn7At7xddkOeieUeFIE3cUe1FLf7Tf26FzywMYSyKoaJxjsj7w_fHuYACIHiJexVK0naT_IS5PZ249QHAGhvtXuCnm1I6SLMFLUFrryIYVKo4SOQUdlzp6-BMWLn34YwW_jAfMNiJq20u8btCYBoLnmD63onRneKVGhnKumE",
+          "challengeName": null
+        }
+      }
+
+    UserNotFoundError:
+      summary: The user not found
+      value: {
+        "status": 401,
+        "errors": [
+        {
+          "title": "Unauthorized",
+          "details": "The user is not found.",
+          "code": "UNAUTHORIZED",
+          "target": "common"
+        }
+        ]
+      }
+
+    UserIsPendingError:
+      summary: The user is pending
+      value: {
+        "status": 401,
+        "errors": [
+        {
+          "title": "Unauthorized",
+          "details": "Sorry, user f35cffa7-abbc-4060-9b53-253a77254cc0 is pending ",
+          "code": "USERS_USER_IS_PENDING",
+          "target": "common"
+        }
+        ]
+      }
+
+    InvalidUsernameOrPasswordError:
+      summary: Invalid username or password
+      value: {
+        "status": 401,
+        "errors": [
+        {
+          "title": "Unauthorized",
+          "details": "Invalid username or password.",
+          "code": "USERS_INVALID_USERNAME_OR_PASSWORD",
+          "target": "common"
+        }
+        ]
+      }
+
+    AccessTokenNotFoundError:
+      summary: Access token not found
+      value: {
+        "errors": [
+        {
+          "title": "Access token not found",
+          "details": "",
+          "code": "ACCESS_TOKEN_NOT_FOUND",
+          "source": null,
+          "target": "common",
+          "meta": null
+        }
+        ]
+      }
+
+    AccessTokenIsInvalidError:
+      summary: Access token is invalid
+      value: {
+        "errors": [
+        {
+          "title": "Access token is invalid",
+          "details": "",
+          "code": "ACCESS_TOKEN_INVALID",
+          "source": null,
+          "target": "common",
+          "meta": null
+        }
+        ]
+      }
+
+    EmailExistError:
+      summary: Email already exist
+      value: {
+        "status": 422,
+        "errors": [{
+                     "title": "Unprocessable Entity",
+                     "details": "`test@email.com` already exists",
+                     "code": "NO_EMAIL_EXISTS",
+                     "source": "email",
+                     "target": "field"
+                   }]
+      }
+
+    PhoneNumberExistError:
+      summary: Phone number already exist
+      value: {
+        "status": 422,
+        "errors": [{
+                     "title": "Unprocessable Entity",
+                     "details": "Phone number existing on platform",
+                     "code": "INVALID_FIELD",
+                     "source": "phoneNumber",
+                     "target": "field"
+                   }]
+      }
+
+    PhoneNumberFormatError:
+      summary: Phone number invalid format
+      value: {
+        "status": 422,
+        "errors": [{
+                     "title": "Unprocessable Entity",
+                     "details": "The value is not a valid format +254XXXXXXXXX",
+                     "code": "PHONE_NUMBER",
+                     "source": "phoneNumber",
+                     "target": "field"
+                   }]
+      }
+
+    InvalidFieldError:
+      summary: Invalid field
+      value: {
+        "status": 422,
+        "errors": [{
+                     "title": "Unprocessable Entity",
+                     "details": "$field is not valid",
+                     "code": "INVALID_FIELD",
+                     "source": "$field",
+                     "target": "field"
+                   }]
+      }
+
+
+    FieldRequiredError:
+      summary: For required fields
+      value: {
+        "status": 422,
+        "errors": [{
+                     "title": "Unprocessable Entity",
+                     "details": "$field is required",
+                     "code": "REQUIRED",
+                     "source": "$field",
+                     "target": "field"
+                   }]
+      }
+
+    FieldMismatchError:
+      summary: Field mismatch
+      value: {
+        "status": 422,
+        "errors": [{
+                     "title": "Unprocessable Entity",
+                     "details": "$field mismatch",
+                     "code": "EQFIELD",
+                     "source": "$field",
+                     "target": "field"
+                   }]
+      }
+
+    FieldTooLongError:
+      summary: Field too long
+      value: {"status": 422,
+              "errors": [{
+                           "title": "Unprocessable Entity",
+                           "details": "$field cannot be longer than value",
+                           "code": "MAX",
+                           "source": "$field",
+                           "target": "field"}
+              ]}
+    MinLenghtError:
+      summary: Field is too short
+      value: {
+        "status": 422,
+        "errors": [{
+                     "title": "Unprocessable Entity",
+                     "details": "$field must be longer than $value",
+                     "code": "MIN",
+                     "source": "$field",
+                     "target": "field"
+                   }]
+      }
+
+    MaxLenghtError:
+      summary: Field is too long
+      value: {
+        "status": 422,
+        "errors": [{
+                     "title": "Unprocessable Entity",
+                     "details": "$field cannot be longer than $value",
+                     "code": "MAX",
+                     "source": "$field",
+                     "target": "field"
+                   }]
+      }
+
+    SpecialCharacterRequiredError:
+      summary: Field requires a speciaal charater
+      value: {
+        "status": 422,
+        "errors": [{
+                     "title": "Unprocessable Entity",
+                     "details": "$field must contain at least one special character",
+                     "code": "SPECIAL_CHARACTER_REQUIRED",
+                     "source": "$field",
+                     "target": "field"
+                   }]
+      }
+
+    NumberRequiredError:
+      summary: Field requires a number
+      value: {
+        "status": 422,
+        "errors": [{
+                     "title": "Unprocessable Entity",
+                     "details": "$field must contain at least one number",
+                     "code": "NUMBER_REQUIRED",
+                     "source": "$field",
+                     "target": "field"
+                   }]
+      }
+
+    UppercaseLetterRequiredError:
+      summary: Field requires an uppercaase letter
+      value: {
+        "status": 422,
+        "errors": [{
+                     "title": "Unprocessable Entity",
+                     "details": "$field must contain at least one uppercase letter",
+                     "code": "UPPERCASE_LETTER_REQUIRED",
+                     "source": "$field",
+                     "target": "field"
+                   }]
+      }
+
+    LowercaseLetterRequiredError:
+      summary: Field requires an lowercaase letter
+      value: {
+        "status": 422,
+        "errors": [{
+                     "title": "Unprocessable Entity",
+                     "details": "$field must contain at least one lowercase letter",
+                     "code": "LOWERCASE_LETTER_REQUIRED",
+                     "source": "$field",
+                     "target": "field"
+                   }]
+      }
+
+    ResetPasswordIsNotAllowedError:
+      summary: Reset password is not allowed
+      value: {
+        "status": 403,
+        "errors": [{
+                     "title": "Forbidden",
+                     "details": "Can't reset password.",
+                     "code": "RESET_PASSWORD_IS_NOT_ALLOWED",
+                     "target": "common"
+                   }]
+      }
+
+    CannotForgotPasswordError:
+      summary: Cannot forgot password
+      value: {
+        "status": 400,
+        "errors": [{
+                     "title": "Bad Request",
+                     "details": "Can't reset password.",
+                     "code": "CANNOT_FORGOT_PASSWORD",
+                     "target": "common"
+                   }]
+      }
+
+    InvalidConfirmationCodeError:
+      summary: Invalid confirmation code
+      value: {
+        "status": 400,
+        "errors": [{
+                     "title": "Bad Request",
+                     "details": "Can't reset password.",
+                     "code": "INVALID_CONFIRMATION_CODE",
+                     "target": "common"
+                   }]
+      }
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT

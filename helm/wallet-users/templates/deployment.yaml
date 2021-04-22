@@ -1,0 +1,103 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "wallet-users.name" . }}
+  labels:
+  {{- include "wallet-users.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+  {{- include "wallet-users.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+      {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+    {{- include "wallet-users.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+      {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "wallet-users.serviceAccountName" . }}
+      securityContext:
+      {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: {{ .Chart.Name }}
+          securityContext:
+          {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ include "wallet-users.imageRepositoryWithTag" . }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: public-api
+              containerPort: {{ .Values.service.ports.public }}
+            - name: rpc
+              containerPort: {{ .Values.service.ports.rpc }}
+          {{- with .Values.containerPorts }}
+          {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- if .Values.containerLivenessProbe.enabled }}
+          livenessProbe:
+            failureThreshold: {{ .Values.containerLivenessProbe.failureThreshold }}
+            periodSeconds: {{ .Values.containerLivenessProbe.periodSeconds }}
+            httpGet:
+              path: /{{ .Values.appApiPathPrefix }}/health-check
+              port: {{ .Values.service.ports.public }}
+          {{- end }}
+          env:
+            - name: VELMIE_WALLET_USERS_DB_HOST
+              value: "{{ required ".Values.appEnv.dbHost is required! Make sure to provide it." .Values.appEnv.dbHost }}"
+            - name: VELMIE_WALLET_USERS_DB_PORT
+              value: "{{ required ".Values.appEnv.dbPort is required! Make sure to provide it." .Values.appEnv.dbPort }}"
+            - name: VELMIE_WALLET_USERS_DB_USER
+              value: "{{ required ".Values.appEnv.dbUser is required! Make sure to provide it." .Values.appEnv.dbUser }}"
+            - name: VELMIE_WALLET_USERS_DB_PASS
+              value: "{{ required ".Values.appEnv.dbPass is required! Make sure to provide it." .Values.appEnv.dbPass }}"
+            - name: VELMIE_WALLET_USERS_DB_NAME
+              value: "{{ required ".Values.appEnv.dbName is required! Make sure to provide it." .Values.appEnv.dbName }}"
+            - name: VELMIE_WALLET_USERS_DB_DRIV
+              value: "mysql"
+            - name: VELMIE_WALLET_USERS_DB_IS_DEBUG_MODE
+              value: "{{ .Values.appEnv.dbDebugMode }}"
+            - name: VELMIE_WALLET_USERS_CORS_METHODS
+              value: "{{ required ".Values.appEnv.corsMethods is required! Make sure to provide it." .Values.appEnv.corsMethods }}"
+            - name: VELMIE_WALLET_USERS_CORS_ORIGINS
+              value: "{{ required ".Values.appEnv.corsOrigins is required! Make sure to provide it." .Values.appEnv.corsOrigins }}"
+            - name: VELMIE_WALLET_USERS_CORS_HEADERS
+              value: "{{ required ".Values.appEnv.corsHeaders is required! Make sure to provide it." .Values.appEnv.corsHeaders }}"
+            - name: VELMIE_WALLET_USERS_SERVER_PORT
+              value: "{{ required ".Values.service.ports.public is required! Make sure to provide it." .Values.service.ports.public }}"
+            - name: VELMIE_WALLET_USERS_RPC_PORT
+              value: "{{ required ".Values.service.ports.rpc is required! Make sure to provide it." .Values.service.ports.rpc }}"
+            - name: VELMIE_WALLET_USERS_JWT_SIGNING_METHOD
+              value: "{{ required ".Values.appEnv.jwtSigningMethod is required! Make sure to provide it." .Values.appEnv.jwtSigningMethod }}"
+            - name: VELMIE_WALLET_USERS_JWT_SECRET
+              value: "{{ default ( randAlphaNum 32) .Values.appEnv.jwtSecret }}"
+            {{ if hasPrefix "ES" .Values.appEnv.jwtSigningMethod -}}
+            - name: VELMIE_WALLET_USERS_SECRET_KEY_PATH
+              value: "{{ required ".Values.appEnv.jwtSecretKeyPath is required! Make sure to provide it." .Values.appEnv.jwtSecretKeyPath }}"
+            - name: VELMIE_WALLET_USERS_PUBLIC_KEY_PATH
+              value: "{{ required ".Values.appEnv.jwtPublicKeyPath is required! Make sure to provide it." .Values.appEnv.jwtPublicKeyPath }}"
+            {{- end }}
+            {{- with .Values.env }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          resources:
+      {{- toYaml .Values.resources | nindent 12 }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+      {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+      {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+      {{- toYaml . | nindent 8 }}
+  {{- end }}

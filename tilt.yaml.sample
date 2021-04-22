@@ -1,0 +1,5 @@
+---
+# Tells Tilt to use Dockerfile.debug and forward port for debugging
+debug: false
+# Additional port that will be exposed by a container (this assumes that it is debugger port)
+debug_port: "4040"

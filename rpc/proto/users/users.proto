@@ -1,0 +1,242 @@
+syntax = "proto3";
+
+package velmie.wallet.users;
+option go_package = "users";
+
+service UserHandler {
+  rpc GetByUID(Request) returns (Response);
+  rpc GetByUsername(Request) returns (Response);
+  rpc GetByProfileData(Request) returns (Response);
+  rpc GetByRoleName(Request) returns (Response);
+  rpc ValidateAccessToken(Request) returns (Response);
+  rpc GetByUIDs(Request) returns (Response);
+  rpc GetByUserGroupId(Request) returns (Response);
+  rpc GetAll(Request) returns (Response);
+  rpc GetFullUsersByUIDs(RequestFullUsersByUIDs) returns (FullUsersResponse);
+  rpc GetDevicesByUID(DevicesRequest) returns (DevicesResponse);
+  rpc GetByAdministratorClassId(Request) returns (Response);
+  rpc ValidateTmpAuthToken(Request) returns (Response);
+  rpc GetStaffUsers(Request) returns (Response);
+  rpc GetCompaniesByIDs(CompaniesIDsRequest) returns (CompaniesResponse);
+  rpc SaveCompaniesByName(CompaniesNameRequest) returns (CompaniesResponse);
+  rpc UpdateUserAndAttributes(UserUpdateRequest) returns (UserUpdateResponse);
+  rpc GetUserAndAttributes(UserGetRequest) returns (UserGetResponse);
+  rpc UpdateProfileImageID(UpdateProfileImageIDRequest) returns (UpdateProfileImageIDResponse);
+}
+
+message UserGetRequest{
+  string UID = 1;
+}
+
+message UserGetResponse{
+  string UID = 1;
+  string Email = 2;
+  string PhoneNumber = 3;
+  string FirstName = 4;
+  string LastName = 5;
+  repeated Attribute attributes = 6;
+  repeated Address mailingAddresses = 7;
+  repeated Address physicalAddresses = 8;
+}
+
+message Address{
+  uint64 Id = 1;
+  string Type = 2;
+  string CountryIsoTwo = 3;
+  string Region = 4;
+  string City = 5;
+  string ZipCode = 6;
+  string Address = 7;
+  string AddressSecondLine = 8;
+  string Name = 9;
+  string PhoneNumber = 10;
+  string Description = 11;
+  double Latitude = 12;
+  double Longitude = 13;
+}
+
+message UserUpdateRequest{
+  string UID = 1;
+  string Email = 2;
+  string PhoneNumber = 3;
+  string FirstName = 4;
+  string LastName = 5;
+  repeated Attribute attributes = 6;
+  repeated Address mailingAddresses = 7;
+  repeated Address physicalAddresses = 8;
+}
+
+message Attribute {
+  string Name = 1;
+  string Type = 2;
+  string Value = 3;
+}
+
+message UserUpdateResponse {
+  Error error = 1;
+}
+
+message User {
+  string UID = 1;
+  string Email = 2;
+  string Username = 3;
+  string FirstName = 4;
+  string LastName = 5;
+  string RoleName = 6;
+  uint64 GroupId = 7;
+  string PhoneNumber = 8;
+  string CompanyName = 9;
+  int64 AdministratorClassId = 10;
+  string SmsPhoneNumber = 11;
+  string ParentUID = 12;
+  uint64 CompanyID = 13;
+  bool  IsPhoneNumberConfirmed = 14;
+  bool  IsEmailConfirmed = 15;
+  uint64 ProfileImageID = 16;
+}
+
+message Request {
+  string UID = 1;
+  string AccessToken = 2;
+  string username = 3;
+  string roleName = 4;
+  repeated string UIDs = 5;
+  uint64 GroupId = 6;
+  uint64 ClassId = 7;
+  string TmpAuthToken = 8;
+  string ParentUID = 9;
+  repeated string SearchColumns = 10;
+}
+
+message Response {
+  User user = 2;
+  repeated User users = 3;
+  Error error = 4;
+}
+
+// Devices
+message Device {
+  string ID = 1;
+  string Pin = 2;
+  string PushToken = 3;
+  string OsType = 4;
+  string CreatedAt = 5;
+  string UpdatedAt = 6;
+}
+
+message DevicesRequest {
+  string UID = 1;
+}
+
+message DevicesResponse {
+  Device device = 1;
+  repeated Device devices = 2;
+  Error error = 3;
+}
+
+message Error {
+  string title = 1;
+  string details = 2;
+}
+
+message RequestFullUsersByUIDs {
+  repeated string UIDs = 1;
+  repeated string fields = 2; // use ":" to  fetch nested fields, e.g. "UserDetails:Fax"
+}
+
+message FullUsersResponse {
+  repeated FullUser full_users = 1;
+}
+
+message FullUser {
+  string uid = 1;
+  string email = 2;
+  string username = 3;
+  string password = 4;
+  string first_name = 5;
+  string last_name = 6;
+  string phone_number = 7;
+  bool is_corporate = 8;
+  string role_name = 9;
+  string status = 10;
+  uint64 user_group_id = 11;
+  string created_at = 12;
+  UserDetails user_details = 13;
+  PhysicalAdress physical_adress = 14;
+  BenificialOwner benificial_owner = 15;
+  UserGroup user_group = 16;
+  Company company_details = 17;
+}
+
+message UserDetails {
+  string class_id = 1;
+  string country_of_residence_iso2 = 2;
+  string country_of_citizenship_iso2 = 3;
+  uint64 date_of_birth_year = 4;
+  uint64 date_of_birth_month = 5;
+  uint64 date_of_birth_day = 6;
+  string document_type = 7;
+  string document_personal_id = 8;
+  string fax = 9;
+  string home_phone_number = 10;
+  string internal_notes = 11;
+  string office_phone_number = 12;
+  string position = 13;
+}
+
+message PhysicalAdress {
+  string pa_zip_postal_code = 1;
+  string pa_address = 2;
+  string pa_address_2nd_line = 3;
+  string pa_city = 4;
+  string pa_country_iso2 = 5;
+  string pa_state_prov_region = 6;
+}
+
+message BenificialOwner {
+  string bo_full_name = 1;
+  string bo_phone_number = 2;
+  uint64 bo_date_of_birth_year = 3;
+  uint64 bo_date_of_birth_month = 4;
+  uint64 bo_date_of_birth_day = 5;
+  string bo_document_personal_id = 6;
+  string bo_document_type = 7;
+  string bo_address = 8;
+  string bo_relationship = 9;
+}
+
+message UserGroup {
+  uint64 id = 1;
+  string name = 2;
+  string description = 3;
+}
+
+message Company {
+  uint64 ID = 2;
+  string company_name = 3;
+  string company_type = 4;
+  string company_role = 5;
+  string director_first_name = 6;
+  string director_last_name = 7;
+}
+
+message CompaniesResponse {
+  repeated Company Companies = 1;
+  Error error = 2;
+}
+
+message CompaniesIDsRequest {
+  repeated uint64 IDs = 1;
+}
+
+message CompaniesNameRequest {
+  repeated string names = 1;
+}
+
+message UpdateProfileImageIDRequest {
+  string UID = 1;
+  uint64 imageID = 2;
+}
+
+message UpdateProfileImageIDResponse {
+}

@@ -1,0 +1,4 @@
+FROM a1xp/laravel-migrate
+COPY migrations /migrations
+ENTRYPOINT ["/provision/entrypoint.sh"]
+CMD ["php", "artisan", "migrate", "--force"]

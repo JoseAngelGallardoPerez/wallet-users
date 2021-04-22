@@ -1,0 +1,1004 @@
+openapi: 3.0.2
+info:
+  title: Wallet Users service
+  version: "0.1.0"
+  description: |
+    Service Accounts API for developers.
+
+security:
+  - bearerAuth: []
+tags:
+  - name: "Users"
+    description: "The Users API"
+  - name: "Contacts"
+    description: "The Contacts API"
+  - name: "Verifications"
+    description: "The Verifications API"
+paths:
+  /users/private/v1/list-contacts:
+    post:
+      security:
+        - bearerAuth: []
+      tags:
+        - Contacts
+      summary: Get list by phones
+      description: Get list of users with limited list of fields by phones list
+      operationId: ListContacts
+      requestBody:
+        $ref: '#/components/requestBodies/ListPhoneNumbers'
+      responses:
+        200:
+          description: Successful request
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: string
+                  data:
+                    $ref: '#/components/schemas/ResponsesListContacts'
+        400:
+          description: CANNOT_RETRIEVE_COLLECTION (Can't load list of users)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+        401:
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        403:
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        500:
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  "/users/private/v1/users/{uid}/reset-password":
+    post:
+      security:
+        - bearerAuth: [ ]
+      tags:
+        - Users
+      summary: Reset password
+      description: Reset user password
+      operationId: ResetUserPasswordHandler
+      parameters:
+        - name: uid
+          in: path
+          description: User id.
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Success
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Unprocessable Entity
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrors'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                newPassword:
+                  type: string
+                confirmPassword:
+                  type: string
+        description: Created user object
+        required: true
+
+  /users/private/v1/users:
+    get:
+      security:
+        - bearerAuth: []
+      tags:
+        - Users
+      summary: Get list of users
+      description: Returns the list of users
+      operationId: UsersListHandler
+      parameters:
+        - in: query
+          name: page
+          description: The page of results.
+          schema:
+            type: integer
+            default: 1
+        - in: query
+          name: limit
+          description: The numbers of items to return.
+          schema:
+            type: integer
+            default: 1
+        - in: query
+          name: sort
+          description: Sort the result-set in ascending or descending(use "-") order..
+          schema:
+            type: string
+            example: -companies.company_name
+            default: created_at
+        - in: query
+          name: 'filter[query]'
+          description: For filtering by query
+          schema:
+            type: string
+        - in: query
+          name: 'filter[status]'
+          description: 'For filtering by status (pending, active, blocked, dormant)'
+          schema:
+            type: string
+        - in: query
+          name: 'filter[role_name]'
+          description: 'For filtering by role name (buyer, supplier, financier)'
+          schema:
+            type: string
+        - in: query
+          name: 'filter[user_group_id]'
+          description: For filtering by group
+          schema:
+            type: integer
+        - in: query
+          name: 'filter[date_from]'
+          description: YYYY-MM-DD
+          schema:
+            type: string
+        - in: query
+          name: 'filter[date_to]'
+          description: YYYY-MM-DD
+          schema:
+            type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Users'
+          description: OK
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    post:
+      security:
+        - bearerAuth: []
+      tags:
+        - Users
+      summary: Create user
+      description: Creates new user
+      operationId: UsersCreateHandler
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: string
+                  data:
+                    $ref: '#/components/schemas/User'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Unprocessable Entity
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrors'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/User'
+        description: Created user object
+        required: true
+
+  /users/private/v1/users/{uid}:
+    put:
+      security:
+        - bearerAuth: []
+      tags:
+        - Users
+      summary: Update user
+      description: Update user
+      operationId: UsersUpdateHandler
+      parameters:
+        - name: uid
+          in: path
+          description: User id.
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: No Content
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Unprocessable Entity
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrors'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/User'
+            examples:
+              clientByAdmin:
+                $ref: '#/components/examples/UpdateClientByAdmin'
+              client:
+                $ref: '#/components/examples/UpdateClientByClient'
+              admin:
+                $ref: '#/components/examples/UpdateAdminByAdmin'
+        description: Created user object
+        required: true
+
+  /users/private/v1/limited/auth/me:
+    get:
+      security:
+        - bearerAuth: []
+      tags:
+        - Users
+        - Limited
+      summary: Get current user by X-Tmp-Auth token
+      description: |
+        Retrieve current (logged in) an user object using temporary access token. Available only for clients.
+        Please note that this endpoint requires `X-Tmp-Auth` header to be set.
+      operationId: MeHandlerWithTmp
+      parameters:
+        - $ref: '#/components/parameters/TmpAuth'
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: number
+                  data:
+                    $ref: '#/components/schemas/User'
+        401:
+          description: Unauthorized
+        404:
+          description: Not Found
+        500:
+          description: Internal server error
+
+  /users/private/v1/limited/users/profile:
+    put:
+      security:
+        - bearerAuth: []
+      tags:
+        - Users
+        - Limited
+      summary: Update a client profile by X-Tmp-Auth token
+      description: >-
+        Update a client profile using temporary access token. Available only for clients.
+        Please note that this endpoint requires `X-Tmp-Auth` header to be set.
+      operationId: updateUserProfileWithTmp
+      parameters:
+        - $ref: '#/components/parameters/TmpAuth'
+      responses:
+        204:
+          description: No Content
+        401:
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        403:
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        404:
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        422:
+          description: Unprocessable Entity
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        500:
+          description: Internal Server Error
+      requestBody:
+        $ref: '#/components/requestBodies/UpdateClientLimited'
+
+  /users/private/v1/limited/users/generate-new-phone-code:
+    post:
+      security:
+        - bearerAuth: []
+      tags:
+        - Verifications
+        - Limited
+      summary: Send verification sms.
+      description: >-
+        Send verification sms using temporary access token. Available only for clients.
+        Please note that this endpoint requires `X-Tmp-Auth` header to be set.
+      operationId: GenerateNewPhoneCode
+      parameters:
+        - $ref: '#/components/parameters/TmpAuth'
+      responses:
+        204:
+          description: No Content
+        401:
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        403:
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        404:
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        422:
+          description: Unprocessable Entity
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        500:
+          description: Internal Server Error
+
+  /users/private/v1/limited/users/check-phone-code:
+    put:
+      security:
+        - bearerAuth: []
+      tags:
+        - Verifications
+        - Limited
+      summary: Check phone code.
+      description: >-
+        Check phone code using temporary access token. Available only for clients.
+        Please note that this endpoint requires `X-Tmp-Auth` header to be set.
+      operationId: CheckPhoneCode
+      parameters:
+        - $ref: '#/components/parameters/TmpAuth'
+      responses:
+        204:
+          description: No Content
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        401:
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        403:
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        404:
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        422:
+          description: Unprocessable Entity
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        500:
+          description: Internal Server Error
+      requestBody:
+        $ref: '#/components/requestBodies/ConfirmationCode'
+
+  /users/private/v1/limited/users/generate-new-email-code:
+    post:
+      security:
+        - bearerAuth: []
+      tags:
+        - Verifications
+        - Limited
+      summary: Send verification email.
+      description: >-
+        Send verification email using temporary access token. Available only for clients.
+        Please note that this endpoint requires `X-Tmp-Auth` header to be set.
+      operationId: GenerateNewEmailCode
+      parameters:
+        - $ref: '#/components/parameters/TmpAuth'
+      responses:
+        204:
+          description: No Content
+        401:
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        403:
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        404:
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        422:
+          description: Unprocessable Entity
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        500:
+          description: Internal Server Error
+
+  /users/private/v1/limited/users/check-email-code:
+    put:
+      security:
+        - bearerAuth: []
+      tags:
+        - Verifications
+        - Limited
+      summary: Check email code.
+      description: >-
+        Check email code using temporary access token. Available only for clients.
+        Please note that this endpoint requires `X-Tmp-Auth` header to be set.
+      operationId: CheckEmailCode
+      parameters:
+        - $ref: '#/components/parameters/TmpAuth'
+      responses:
+        204:
+          description: No Content
+        401:
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        403:
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        404:
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        422:
+          description: Unprocessable Entity
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        500:
+          description: Internal Server Error
+      requestBody:
+        $ref: '#/components/requestBodies/ConfirmationCode'
+
+components:
+  schemas:
+    ResponsesListContacts:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            uid:
+              type: string
+              example: ec3aaee1-4c1d-45ff-8dbf-61a66fdb8999
+            phoneNumber:
+              type: string
+              example: +254000000005
+    ValidationErrors:
+      type: object
+      properties:
+        errors:
+          type: object
+          properties:
+            SomeField1:
+              type: string
+            SomeField2:
+              type: string
+            SomeField3:
+              type: string
+    Users:
+      type: object
+      properties:
+        status:
+          type: number
+        data:
+          type: object
+          properties:
+            total_record:
+              type: number
+            total_page:
+              type: number
+            offset:
+              type: number
+            limit:
+              type: number
+            page:
+              type: number
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/User'
+    Address:
+      type: object
+      properties:
+        id:
+          type: number
+        countryIsoTwo:
+          type: string
+        zipCode:
+          type: string
+        address:
+          type: string
+        addressSecondLine:
+          type: string
+        city:
+          type: string
+        region:
+          type: string
+        description:
+          type: string
+        latitude:
+          type: number
+        longitude:
+          type: number
+    User:
+      type: object
+      properties:
+        uid:
+          type: string
+        email:
+          type: string
+        username:
+          type: string
+        firstName:
+          type: string
+        lastName:
+          type: string
+        middleName:
+          type: string
+        nickname:
+          type: string
+        phoneNumber:
+          type: string
+        smsPhoneNumber:
+          type: string
+        isCorporate:
+          type: boolean
+        roleName:
+          type: string
+        parentId:
+          type: string
+        status:
+          type: string
+        userGroup:
+          $ref: '#/components/schemas/UserGroup'
+        userGroupId:
+          type: number
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+          example: "2020-02-06T07:58:20Z"
+        lastLoginAt:
+          type: string
+          example: "2020-02-06T07:58:20Z"
+        lastActedAct:
+          type: string
+          example: "2020-02-06T07:58:20Z"
+        lastLoginIp:
+          type: string
+        challengeName:
+          description: This information indicates that the user should do something. For example if the value is equal 'new_password_required' it means the user should change own password.
+          type: string
+          enum:
+            - new_password_required
+        blockedUntil:
+          type: string
+          example: "2020-02-06T07:58:20Z"
+        isPhoneConfirmed:
+          type: boolean
+        isEmailConfirmed:
+          type: boolean
+        companyDetails:
+          type: object
+          properties:
+            id:
+              type: number
+            companyName:
+              type: string
+            companyType:
+              type: string
+            companyRole:
+              type: string
+            directorFirstName:
+              type: string
+            directorLastName:
+              type: string
+            maskName:
+              type: string
+        companyId:
+          type: integer
+        physicalAddresses:
+          type: array
+          items:
+            $ref: '#/components/schemas/Address'
+        mailingAddresses:
+          type: array
+          items:
+            $ref: '#/components/schemas/Address'
+        classId:
+          type: integer
+        countryOfResidenceIsoTwo:
+          type: string
+        countryOfCitizenshipIsoTwo:
+          type: string
+        dateOfBirth:
+          type: string
+        documentType:
+          type: string
+        documentPersonalId:
+          type: string
+        fax:
+          type: string
+        homePhoneNumber:
+          type: string
+        internalNotes:
+          type: string
+        officePhoneNumber:
+          type: string
+        position:
+          type: string
+
+    UserGroup:
+      type: object
+      properties:
+        id:
+          type: number
+        name:
+          type: string
+        description:
+          type: string
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+
+    UpdateUser:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            username:
+              type: string
+            email:
+              type: string
+            confirmEmail:
+              type: string
+            firstName:
+              type: string
+            lastName:
+              type: string
+            middleName:
+              type: string
+            nickname:
+              type: string
+            phoneNumber:
+              type: string
+            smsPhoneNumber:
+              type: string
+            companyName:
+              type: string
+            companyType:
+              type: string
+            companyRole:
+              type: string
+            directorFirstName:
+              type: string
+            directorLastName:
+              type: string
+            isCorporate:
+              type: boolean
+            password:
+              type: string
+            confirmPassword:
+              type: string
+            previousPassword:
+              type: string
+            dateOfBirth:
+              type: string
+              example: "1990-03-21"
+            documentType:
+              type: string
+              enum:
+                - passport
+                - driver-license
+                - gov-issued-photo-id
+            documentPersonalId:
+              type: string
+            countryOfResidenceIsoTwo:
+              type: string
+            countryOfCitizenshipIsoTwo:
+              type: string
+            homePhoneNumber:
+              type: string
+            officePhoneNumber:
+              type: string
+            fax:
+              type: string
+
+    ErrorResponse:
+      type: object
+      properties:
+        errors:
+          type: array
+          items:
+            $ref: '#/components/schemas/Error'
+
+    Error:
+      type: object
+      properties:
+        title:
+          type: string
+        details:
+          type: string
+        code:
+          type: string
+        target:
+          type: string
+
+    ConfirmationCode:
+      type: object
+      properties:
+        code:
+          type: string
+          example: ABCD5
+
+  requestBodies:
+    ListPhoneNumbers:
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              phoneNumbers:
+                type: array
+                items:
+                  type: string
+                  example:
+                    - +254000000001
+                    - +254000000002
+                    - +254000000003
+                    - +254000000004
+                    - +254000000005
+
+    UpdateClientLimited:
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/UpdateUser'
+      description: Updated an user object
+      required: true
+
+    ConfirmationCode:
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ConfirmationCode'
+
+  parameters:
+    TmpAuth:
+      in: header
+      name: X-Tmp-Auth
+      description: JWT which provides an access to the "limited" endpoints.
+      schema:
+        type: string
+      required: true
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  examples:
+    UpdateClientByAdmin:
+      summary: Update a client by an admin
+      value:
+        firstName: Text
+        lastName: Text
+        email: Text
+        phoneNumber: text
+        status: text
+        dateOfBirth: "2006-12-18"
+        documentPersonalId: text
+        userGroupId: 12
+        documentType: text
+        companyDetails:
+           id: 1,
+           companyName: text,
+           companyType: text
+        physicalAddresses[0]:
+          id: 1
+          countryIsoTwo: "string"
+          zipCode: "string"
+          address: "string"
+          addressSecondLine: "string"
+          city: "string"
+          region: "string"
+
+        mailingAddresses[0]:
+          id: 1
+          countryIsoTwo: "string"
+          zipCode: "string"
+          address: "string"
+          addressSecondLine: "string"
+          city: "string"
+          region: "string"
+
+    UpdateClientByClient:
+      summary: Update a client by the client
+      value:
+        firstName: Text
+        lastName: Text
+        phoneNumber: text
+        dateOfBirth: "2006-12-18"
+        documentPersonalId: text
+        companyDetails:
+          id: 1,
+          companyName: text
+        physicalAddresses[0]:
+          id: 1
+          countryIsoTwo: "string"
+          zipCode: "string"
+          address: "string"
+          addressSecondLine: "string"
+          city: "string"
+          region: "string"
+
+        mailingAddresses[0]:
+          id: 1
+          countryIsoTwo: "string"
+          zipCode: "string"
+          address: "string"
+          addressSecondLine: "string"
+          city: "string"
+          region: "string"
+
+    UpdateAdminByAdmin:
+      summary: Update an admin by an admin
+      value:
+        email: text
+        firstName: Text
+        lastName: Text
+        username: Text
+        phoneNumber: text
+        position: text
+        internalNotes: text
+        classId: 1
+        status: Text
+

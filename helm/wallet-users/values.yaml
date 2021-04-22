@@ -1,0 +1,178 @@
+# K8S Service definition
+service:
+  # k8s Service spec type
+  type: ClusterIP
+  # k8s spec ports
+  ports:
+    # users service public API port
+    public: 10308
+    # users service private RPC port
+    rpc: 12308
+    # By default RPC port is restricted to be exposed if service type is different than "ClusterIP"
+    # setting this to true explicitly allows to expose it anyway
+    unsafeExposeRPC: false
+  # List of additional selectors
+  selectors: {}
+
+# Optional list of ports that will be exposed on the application container ADDITIONALLY to the ports specified
+# by the service.ports
+containerPorts: []
+
+# Container liveness probe
+containerLivenessProbe:
+  # Determines if Liveness proble enabled
+  enabled: true
+  # Number of requests that should be failed in order to treat container unhealthy
+  failureThreshold: 5
+  # Number of seconds between requests
+  periodSeconds: 15
+
+# Public API path prefix (routes start from), e.g. /users/...
+appApiPathPrefix: "users"
+
+# MySQL administrator credentials
+# This user is used in order to perform tasks related to initialization such as for example
+# creating DB schema (see hooks.dbInit)
+mysqlAdmin:
+  user: ""
+  password: ""
+
+# Provides possibility to manage hooks
+hooks:
+  # Enables a hook that creates database schema and user.
+  # Provided DB user must have appropriate users.
+  # Database host and the schema name are taken from appEnv.dbHost and appEnv.dbName
+  dbInit:
+    enabled: false
+    # Create db schema
+    createSchema: true
+    # Create db user
+    createUser: true
+  # Enables a hook that performs database migration.
+  # This job uses database credentials specified in appEnv.db*
+  dbMigration:
+    enabled: false
+
+# Ingress resource specification
+ingress:
+  # Determines whether to include ingress resource
+  enabled: true
+  # Ingress annotations
+  annotations:
+    kubernetes.io/ingress.class: nginx
+  # TLS connection parameters
+  tls:
+    # Should the TLS be enabled
+    enabled: false
+    # If tls.enabled is true, then host is required e.g. example.com
+    host: ""
+    # Secret name where certificate is stored !NOTE: secret must be in exactly the same namespace as ingress controller
+    secretName: ""
+# Application environment variables
+appEnv:
+  # VELMIE_WALLET_USERS_CORS_METHODS
+  corsMethods: "GET,POST,PUT,OPTIONS"
+  # VELMIE_WALLET_USERS_CORS_ORIGINS
+  corsOrigins: "*"
+  # VELMIE_WALLET_USERS_CORS_HEADERS
+  corsHeaders: "*"
+  # VELMIE_WALLET_USERS_DB_HOST
+  dbHost: "mysql"
+  # VELMIE_WALLET_USERS_DB_PORT
+  dbPort: "3306"
+  # VELMIE_WALLET_USERS_DB_USER
+  # This value is also used by hooks.dbInit
+  dbUser: ""
+  # VELMIE_WALLET_USERS_DB_PASS
+  # This value is also used by hooks.dbInit
+  dbPass: ""
+  # VELMIE_WALLET_USERS_DB_NAME
+  dbName: "wallet-users"
+  # VELMIE_WALLET_USERS_DB_IS_DEBUG_MODE
+  dbDebugMode: false
+  # VELMIE_WALLET_USERS_JWT_SIGNING_METHOD (ES256|ES384|ES512|HS256|HS384|HS512)
+  jwtSigningMethod: HS512
+  # VELMIE_WALLET_USERS_JWT_SECRET (required if signing method is HMAC (HS*))
+  jwtSecret: ""
+  # VELMIE_WALLET_USERS_SECRET_KEY_PATH (./jwt.pem required if signing method is ECDSA(ES*))
+  jwtSecretKeyPath: ""
+  # VELMIE_WALLET_USERS_PUBLIC_KEY_PATH (./jwt.pub required if signing method is ECDSA(ES*))
+  jwtPublicKeyPath: ""
+
+# Additional environment variables
+# env:
+#   - name: ENV_VARIABLE
+#     value: "some value"
+env: []
+
+# Default values for wallet-users.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+replicaCount: 1
+
+image:
+  # Overrides the image repository whose default is the chart name prefixed by "velmie/"
+  repository: "360021420270.dkr.ecr.eu-central-1.amazonaws.com/velmie/wallet-users"
+  pullPolicy: IfNotPresent
+  # Overrides the image tag whose default is the chart appVersion.
+  tag: ""
+  # Overrides the db migration image repository whose default is the
+  # image.repository suffixed by the "-db-migration" string.
+  # This image is used if hooks.dbMigration.enabled is set to true
+  dbMigrationRepository: ""
+  # Overrides the db migration image tag whose default is the image.tag
+  # Usually this value should never be overridden.
+  dbMigrationTag: ""
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  # Specifies whether a service account should be created
+  create: false
+  # Annotations to add to the service account
+  annotations: {}
+  # The name of the service account to use.
+  # If not set and create is true, a name is generated using the fullname template
+  name: ""
+
+podAnnotations: {}
+
+podSecurityContext: {}
+  # fsGroup: 2000
+
+securityContext: {}
+  # capabilities:
+  #   drop:
+  #   - ALL
+  # readOnlyRootFilesystem: true
+  # runAsNonRoot: true
+  # runAsUser: 1000
+
+
+resources: {}
+  # We usually recommend not to specify default resources and to leave this as a conscious
+  # choice for the user. This also increases chances charts run on environments with little
+  # resources, such as Minikube. If you do want to specify resources, uncomment the following
+  # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
+  # limits:
+  #   cpu: 100m
+  #   memory: 128Mi
+  # requests:
+  #   cpu: 100m
+  #   memory: 128Mi
+
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 5
+  targetCPUUtilizationPercentage: 80
+  # targetMemoryUtilizationPercentage: 80
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}
